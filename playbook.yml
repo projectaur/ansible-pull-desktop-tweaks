@@ -11,6 +11,8 @@
   hosts: Ubuntu 
   sudo: True 
   tasks:
+      - name: Add ecr login script
+        copy: src=files/ecr-login dest=/usr/local/bin/ecr-login owner=vagrant group=vagrant mode=777 backup=no
       - name: Add silly environment variable
         lineinfile: dest=/etc/environment line='CUSTOM_CDEWITT_WAS_HERE=true'
       - name: Copy Git configuration file

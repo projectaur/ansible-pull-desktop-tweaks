@@ -91,10 +91,10 @@
       - {home: "{{root_home.stdout}}", become: yes}
 
   - name: Adding ecr-login script
-    copy: content={{"\n".join(ecr_login) + '\n'}}  dest={{home}}/bin/ecr-login mode=0755
+    copy: content={{"\n".join(ecr_login) + '\n'}}  dest={{home}}/bin/ecr-login-helper mode=0755
 
   - name: Authenticating with the aws ecr
-    command: /usr/local/bin/ecr-login
+    command: "{{home}}/bin/ecr-login-helper"
     become: "{{item}}"  # authenticates with both the root and non-root user
     with_items:
       - yes

@@ -1,14 +1,101 @@
-#!/bin/bash
+#!/usr/bin/env ansible-playbook
 
-# IMPORTANT: requires that you have run aws configure to create a new profile with correct keys
+- hosts: "127.0.0.1"
+  connection: local
+  gather_facts: True
+  vars:
+    home: "{{ lookup('env','HOME') }}"
+    aws_access_key_id: ""
+    aws_secret_access_key: ""
+    credentials:
+      - "[default]"
+      - "aws_access_key_id = {{aws_access_key_id}}"
+      - "aws_secret_access_key = {{aws_secret_access_key}}"
+    config:
+      - "[default]"
+      - "output = json"
+      - "region = us-east-1"
+    ecr_login:
+      - "#!/bin/bash"
+      - "RAW=$(aws ecr get-login)"
+      - 'REPLACED=$(echo ${RAW} | sed "s/https:\/\/711226717742.dkr.ecr.us-east-1.amazonaws.com/registry.transparent.com/g")'
+      - "echo ${RAW}"
+      - "echo"
+      - "echo ${REPLACED}"
+      - "${RAW}"
+      - "${REPLACED}"
 
-RAW=$(aws ecr get-login)
-echo ${RAW}
+  tasks:
+  - shell: source /etc/environment && echo $AWS_ACCESS_KEY_ID
+    args:
+      executable: /bin/bash
+    register: AWS_ACCESS_KEY_ID
 
-echo
+  - shell: source /etc/environment && echo $AWS_SECRET_ACCESS_KEY
+    args:
+      executable: /bin/bash
+    register: AWS_SECRET_ACCESS_KEY
 
-REPLACED=$(echo ${RAW} | sed "s/https:\/\/711226717742.dkr.ecr.us-east-1.amazonaws.com/registry.transparent.com/g")
-echo ${REPLACED}
+  - set_fact: aws_access_key_id="{{ AWS_ACCESS_KEY_ID.stdout }}"
+    when: not aws_access_key_id
 
-${RAW}
-${REPLACED}
+  - set_fact: aws_secret_access_key="{{ AWS_SECRET_ACCESS_KEY.stdout }}"
+    when: not aws_secret_access_key
+
+  - debug: msg=aws_secret_access_key={{aws_secret_access_key}}
+  - debug: msg=aws_access_key_id={{aws_access_key_id}}
+
+  - fail:
+      msg: "Please pass in the aws_access_key_id and aws_secret_access_key variables."
+    when: (not aws_access_key_id) or (not aws_secret_access_key)
+
+  - name: Add aws cli environment variable
+    lineinfile: dest=/etc/environment line='{{item}}'
+    become: yes
+    with_items:
+      - 'AWS_ACCESS_KEY_ID={{aws_access_key_id}}'
+      - 'AWS_SECRET_ACCESS_KEY={{aws_secret_access_key}}'
+    register: modify_environment_file
+
+  - name: Source the environment file
+    command: source /etc/environment
+    when: modify_environment_file.changed
+
+  - name: Registering root home directory
+    command: echo $HOME
+    become: yes
+    register: root_home
+
+  - name: Creating the .aws directories
+    file: path={{item.home}}/.aws state=directory
+    become: "{{item.become}}"
+    with_items:
+      - {home: "{{home}}", become: no}
+      - {home: "{{root_home.stdout}}", become: yes}
+
+  - name: Creating the home bin directory
+    file: path={{home}}/bin state=directory
+
+  - name: Adding credentials
+    copy: content={{"\n".join(credentials) + '\n'}} dest={{item.home}}/.aws/credentials
+    become: "{{item.become}}"
+    with_items:
+      - {home: "{{home}}", become: no}
+      - {home: "{{root_home.stdout}}", become: yes}
+
+  - name: Adding config
+    copy: content={{"\n".join(config) + '\n'}} dest={{item.home}}/.aws/config
+    become: "{{item.become}}"
+    with_items:
+      - {home: "{{home}}", become: no}
+      - {home: "{{root_home.stdout}}", become: yes}
+
+  - name: Adding ecr-login script
+    copy: content={{"\n".join(ecr_login) + '\n'}}  dest={{home}}/bin/ecr-login mode=0755
+
+  - name: Authenticating with the aws ecr
+    command: /usr/local/bin/ecr-login
+    become: "{{item}}"  # authenticates with both the root and non-root user
+    with_items:
+      - yes
+      - no

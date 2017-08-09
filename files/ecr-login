@@ -17,7 +17,7 @@
       - "region = us-east-1"
     ecr_login:
       - "#!/bin/bash"
-      - "RAW=$(aws ecr get-login)"
+      - "RAW=$(aws ecr get-login --no-include-email)"
       - 'REPLACED=$(echo ${RAW} | sed "s/https:\/\/711226717742.dkr.ecr.us-east-1.amazonaws.com/registry.transparent.com/g")'
       - "echo ${RAW}"
       - "echo"

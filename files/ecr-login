@@ -26,6 +26,13 @@
       - "${REPLACED}"
 
   tasks:
+  - pip:
+      name: 'awscli'
+      version: '1.11.176'
+  - pip:
+      name: 'docker'
+      version: '2.0.1'
+
   - shell: source /etc/environment && echo $AWS_ACCESS_KEY_ID
     args:
       executable: /bin/bash

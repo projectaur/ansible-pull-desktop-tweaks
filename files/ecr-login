@@ -2,7 +2,7 @@
 
 - hosts: "127.0.0.1"
   connection: local
-  gather_facts: True
+  gather_facts: False
   vars:
     home: "{{ lookup('env','HOME') }}"
     aws_access_key_id: ""
